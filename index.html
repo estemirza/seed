@@ -78,7 +78,7 @@ body.picking .cal-head svg{transform:rotate(180deg);}
 .months button{height:58px; border:1.5px solid transparent; border-radius:14px; background:rgba(255,255,255,.16); color:var(--ink); font-family:var(--serif); font-size:24px; cursor:pointer;}
 .months button.sel{background:var(--track); color:var(--track-ink);}
 /* hide grid+nav while picking */
-body.picking #grid, body.picking .monthnav{display:none;}
+body.picking #grid{display:none;}
 .grid .dow{font-size:22px; color:var(--ink-soft); padding-bottom:6px;}
 .cell{font-size:23px; color:var(--ink); aspect-ratio:1/1; display:flex; align-items:center; justify-content:center; position:relative;}
 .cell.blank{color:transparent;}
@@ -87,9 +87,6 @@ body.picking #grid, body.picking .monthnav{display:none;}
 .cell.track{color:var(--track-ink);}
 .cell.today::after{content:""; position:absolute; inset:8% 6%; border-radius:11px; border:1.6px solid var(--ink); opacity:.55;}
 .cell.today.track::after{border-color:var(--track-ink); opacity:.85;}
-.monthnav{display:flex; justify-content:center; gap:56px; margin-top:16px;}
-.monthnav button{background:none; border:none; cursor:pointer; color:var(--ink); padding:8px;}
-.monthnav svg{width:24px; height:24px; stroke:currentColor; stroke-width:1.7; fill:none;}
 
 /* confirm modal */
 .scrim{position:fixed; inset:0; z-index:3; background:rgba(20,40,36,.32); display:flex; align-items:center; justify-content:center; opacity:0; pointer-events:none; transition:opacity .25s ease; backdrop-filter:blur(2px);}
@@ -123,10 +120,6 @@ body.picking #grid, body.picking .monthnav{display:none;}
   <button class="back" id="toHome"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg>Back</button>
   <div class="cal-head" id="calHead" role="button" tabindex="0"><span id="calHeadText">—</span><svg viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg></div>
   <div class="grid" id="grid"></div>
-  <div class="monthnav">
-    <button id="prevMonth" aria-label="Previous month"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button>
-    <button id="nextMonth" aria-label="Next month"><svg viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg></button>
-  </div>
   <div class="picker" id="picker" hidden>
     <div class="yearRow">
       <button id="pyPrev" aria-label="Previous year"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button>
@@ -231,9 +224,6 @@ function goMonth(dir){
     sliding=false;
   },170);
 }
-document.getElementById('prevMonth').onclick=()=>goMonth(-1);
-document.getElementById('nextMonth').onclick=()=>goMonth(1);
-
 /* swipe left/right on the grid to change months */
 (function(){
   let x0=0,y0=0,tracking=false;
