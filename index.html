@@ -1,0 +1,448 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1, user-scalable=no">
+<meta name="theme-color" content="#cfe6e0">
+<title>Seed — Habit Streak</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" href="icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Seed">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg-top:#dcece6; --bg-bot:#bcd6de;
+  --ink:#22463f; --ink-soft:#43665e; --line:#7c9c95;
+  --track:#7f9a95; --track-ink:#f2f7f5;
+  --serif:"Cormorant Garamond", Georgia, "Times New Roman", serif;
+  --ease:cubic-bezier(.4,0,.2,1);
+}
+*{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+html,body{height:100%;}
+body{
+  margin:0; font-family:var(--serif); color:var(--ink);
+  background:linear-gradient(180deg,var(--bg-top) 0%, #cfe2dd 45%, var(--bg-bot) 100%);
+  overflow:hidden; position:fixed; inset:0;
+  -webkit-font-smoothing:antialiased;
+}
+#orb{position:fixed; inset:0; width:100%; height:100%; z-index:0; display:block; touch-action:none;}
+
+/* animateable layers */
+.layer{position:fixed; left:0; right:0; z-index:1; padding-left:26px; padding-right:26px;
+  transition:transform .62s var(--ease), opacity .5s ease;}
+
+/* home top bar */
+#homeTop{top:0; padding-top:max(22px,env(safe-area-inset-top)); display:flex; align-items:center; justify-content:space-between; min-height:34px;}
+.date{font-size:24px; color:var(--ink);}
+.iconbtn{background:none; border:none; padding:8px; margin:-8px; cursor:pointer; color:var(--ink); display:inline-flex;}
+.iconbtn svg{width:26px; height:26px; stroke:currentColor; stroke-width:1.6; fill:none;}
+body.cal-open #homeTop{opacity:0; transform:translateY(-16px); pointer-events:none;}
+
+/* shared counter — slides down when calendar opens */
+#counter{top:17vh; text-align:center; transform-origin:center top;}
+#counter .num{font-size:118px; line-height:.92; font-weight:500; letter-spacing:1px;}
+#counter .lbl{font-size:60px; font-weight:400; margin-top:2px;}
+body.cal-open #counter{transform:translateY(41vh) scale(.86);}
+
+/* reset — slides down out of view when calendar opens */
+#resetWrap{bottom:0; padding-bottom:max(24px,env(safe-area-inset-bottom));}
+.reset{width:100%; height:70px; border:1.5px solid var(--line); border-radius:16px;
+  background:rgba(255,255,255,.14); color:var(--ink); font-family:var(--serif); font-size:34px; letter-spacing:.5px; cursor:pointer;
+  transition:background .2s ease, transform .06s ease; backdrop-filter:blur(2px);}
+.reset:active{transform:scale(.99); background:rgba(255,255,255,.28);}
+body.cal-open #resetWrap{transform:translateY(150%); opacity:0; pointer-events:none;}
+
+/* calendar panel — slides in from the top */
+#calPanel{top:0; padding-top:max(22px,env(safe-area-inset-top));
+  transform:translateY(-118%); opacity:0; pointer-events:none;}
+body.cal-open #calPanel{transform:translateY(0); opacity:1; pointer-events:auto;}
+.back{display:inline-flex; align-items:center; gap:10px; font-size:24px; color:var(--ink); background:none; border:none; cursor:pointer; font-family:var(--serif); padding:0;}
+.back svg{width:26px; height:26px; stroke:currentColor; stroke-width:1.7; fill:none;}
+.cal-head{display:flex; align-items:center; justify-content:center; gap:8px; font-size:30px; margin:24px 0 12px; cursor:pointer; user-select:none;}
+.cal-head svg{width:18px; height:18px; stroke:currentColor; stroke-width:2; fill:none; transition:transform .25s ease;}
+body.picking .cal-head svg{transform:rotate(180deg);}
+.grid{display:grid; grid-template-columns:repeat(7,1fr); row-gap:8px; text-align:center; max-width:360px; width:100%; margin:0 auto; touch-action:pan-y; transition:transform .18s ease, opacity .18s ease;}
+/* month/year picker */
+.picker{max-width:360px; margin:6px auto 0;}
+.picker[hidden]{display:none;}
+.yearRow{display:flex; align-items:center; justify-content:center; gap:40px; margin:6px 0 18px; font-size:28px;}
+.yearRow button{background:none; border:none; cursor:pointer; color:var(--ink); padding:8px;}
+.yearRow svg{width:22px; height:22px; stroke:currentColor; stroke-width:1.7; fill:none;}
+.months{display:grid; grid-template-columns:repeat(3,1fr); gap:10px;}
+.months button{height:58px; border:1.5px solid transparent; border-radius:14px; background:rgba(255,255,255,.16); color:var(--ink); font-family:var(--serif); font-size:24px; cursor:pointer;}
+.months button.sel{background:var(--track); color:var(--track-ink);}
+/* hide grid+nav while picking */
+body.picking #grid, body.picking .monthnav{display:none;}
+.grid .dow{font-size:22px; color:var(--ink-soft); padding-bottom:6px;}
+.cell{font-size:23px; color:var(--ink); aspect-ratio:1/1; display:flex; align-items:center; justify-content:center; position:relative;}
+.cell.blank{color:transparent;}
+.cell .pip{position:absolute; inset:8% 6%; border-radius:11px; z-index:-1;}
+.cell.track .pip{background:var(--track);}
+.cell.track{color:var(--track-ink);}
+.cell.today::after{content:""; position:absolute; inset:8% 6%; border-radius:11px; border:1.6px solid var(--ink); opacity:.55;}
+.cell.today.track::after{border-color:var(--track-ink); opacity:.85;}
+.monthnav{display:flex; justify-content:center; gap:56px; margin-top:16px;}
+.monthnav button{background:none; border:none; cursor:pointer; color:var(--ink); padding:8px;}
+.monthnav svg{width:24px; height:24px; stroke:currentColor; stroke-width:1.7; fill:none;}
+
+/* confirm modal */
+.scrim{position:fixed; inset:0; z-index:3; background:rgba(20,40,36,.32); display:flex; align-items:center; justify-content:center; opacity:0; pointer-events:none; transition:opacity .25s ease; backdrop-filter:blur(2px);}
+.scrim.show{opacity:1; pointer-events:auto;}
+.card{background:linear-gradient(180deg,#eef6f3,#dfece7); border:1px solid rgba(255,255,255,.6); border-radius:22px; padding:30px 26px 22px; width:min(88vw,340px); text-align:center; box-shadow:0 24px 60px rgba(20,50,44,.28); transform:translateY(10px) scale(.98); transition:transform .25s ease;}
+.scrim.show .card{transform:none;}
+.card h2{margin:0 0 8px; font-size:32px; font-weight:600;}
+.card p{margin:0 0 22px; font-size:20px; color:var(--ink-soft); line-height:1.3;}
+.card .row{display:flex; gap:12px;}
+.card button{flex:1; height:56px; border-radius:14px; font-family:var(--serif); font-size:24px; cursor:pointer; border:1.5px solid var(--line); background:transparent; color:var(--ink);}
+.card button.warn{background:var(--ink); color:#eef6f3; border-color:var(--ink);}
+
+@media (max-height:720px){
+  #counter .num{font-size:96px;} #counter .lbl{font-size:50px;} #counter{top:13vh;}
+}
+</style>
+</head>
+<body>
+<canvas id="orb"></canvas>
+
+<!-- HOME top bar -->
+<header id="homeTop" class="layer">
+  <div class="date" id="dateLabel">—</div>
+  <button class="iconbtn" id="toCal" aria-label="Open calendar">
+    <svg viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="15.5" rx="2.5"/><path d="M3.5 9.5h17M8 3.2v3.4M16 3.2v3.4"/></svg>
+  </button>
+</header>
+
+<!-- CALENDAR panel -->
+<section id="calPanel" class="layer">
+  <button class="back" id="toHome"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg>Back</button>
+  <div class="cal-head" id="calHead" role="button" tabindex="0"><span id="calHeadText">—</span><svg viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg></div>
+  <div class="grid" id="grid"></div>
+  <div class="monthnav">
+    <button id="prevMonth" aria-label="Previous month"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button>
+    <button id="nextMonth" aria-label="Next month"><svg viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg></button>
+  </div>
+  <div class="picker" id="picker" hidden>
+    <div class="yearRow">
+      <button id="pyPrev" aria-label="Previous year"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button>
+      <span id="pyLabel">2026</span>
+      <button id="pyNext" aria-label="Next year"><svg viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg></button>
+    </div>
+    <div class="months" id="months"></div>
+  </div>
+</section>
+
+<!-- shared counter -->
+<div id="counter" class="layer">
+  <div class="num" id="num">0</div>
+  <div class="lbl">Days</div>
+</div>
+
+<!-- reset -->
+<div id="resetWrap" class="layer">
+  <button class="reset" id="resetBtn">Reset</button>
+</div>
+
+<!-- confirm -->
+<div class="scrim" id="scrim">
+  <div class="card">
+    <h2>Reset streak?</h2>
+    <p>This sets your day count back to 0. It can’t be undone.</p>
+    <div class="row">
+      <button id="cancelReset">Cancel</button>
+      <button class="warn" id="confirmReset">Reset</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/three@0.158.0/build/three.min.js"></script>
+<script>
+/* ---------- state / date logic ---------- */
+const KEY="seed.anchor";
+function ymd(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
+function fromYmd(s){const[a,b,c]=s.split('-').map(Number);return new Date(a,b-1,c);}
+function midnight(d){return new Date(d.getFullYear(),d.getMonth(),d.getDate());}
+function diffDays(a,b){return Math.round((midnight(a)-midnight(b))/86400000);}
+function today(){return midnight(new Date());}
+
+let anchor=null; try{ anchor=localStorage.getItem(KEY); }catch(e){}
+if(!anchor){ anchor = ymd(today()); try{localStorage.setItem(KEY,anchor);}catch(e){} }
+
+function streak(){ return Math.max(0, diffDays(today(), fromYmd(anchor))); }
+function isTracked(cell){ const a=fromYmd(anchor), t=today(), c=midnight(cell); return c>midnight(a) && c<=t; }
+
+/* ---------- ui refs ---------- */
+const num=document.getElementById('num');
+const dateLabel=document.getElementById('dateLabel');
+
+function fmtDate(d){
+  const dow=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][d.getDay()];
+  const mon=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][d.getMonth()];
+  return `${dow}, ${d.getDate()} ${mon} ${d.getFullYear()}`;
+}
+function refresh(){
+  num.textContent=streak();
+  dateLabel.textContent=fmtDate(today());
+  if(inCal) renderGrid();
+}
+
+/* ---------- calendar grid ---------- */
+let viewYear, viewMonth;
+(function(){ const t=today(); viewYear=t.getFullYear(); viewMonth=t.getMonth(); })();
+const MONTHS=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const grid=document.getElementById('grid');
+const calHeadText=document.getElementById('calHeadText');
+function renderGrid(){
+  calHeadText.textContent=`${MONTHS[viewMonth]} ${viewYear}`;
+  const dows=['M','T','W','T','F','S','S'];
+  let html=dows.map(d=>`<div class="dow">${d}</div>`).join('');
+  const first=new Date(viewYear,viewMonth,1).getDay();
+  const blanks=(first+6)%7;
+  const days=new Date(viewYear,viewMonth+1,0).getDate();
+  for(let i=0;i<blanks;i++) html+=`<div class="cell blank">.</div>`;
+  const t=today();
+  for(let d=1;d<=days;d++){
+    const cell=new Date(viewYear,viewMonth,d);
+    const cls=['cell'];
+    if(isTracked(cell)) cls.push('track');
+    if(cell.getTime()===t.getTime()) cls.push('today');
+    html+=`<div class="${cls.join(' ')}"><span class="pip"></span>${d}</div>`;
+  }
+  grid.innerHTML=html;
+}
+function stepMonth(dir){ // dir: +1 next, -1 prev
+  viewMonth+=dir;
+  if(viewMonth<0){viewMonth=11;viewYear--;}
+  if(viewMonth>11){viewMonth=0;viewYear++;}
+}
+let sliding=false;
+function goMonth(dir){
+  if(sliding) return; sliding=true;
+  grid.style.opacity=0; grid.style.transform=`translateX(${dir*-26}px)`;
+  setTimeout(()=>{
+    stepMonth(dir); renderGrid();
+    grid.style.transition='none'; grid.style.transform=`translateX(${dir*26}px)`;
+    requestAnimationFrame(()=>{ grid.style.transition=''; grid.style.opacity=1; grid.style.transform=''; });
+    sliding=false;
+  },170);
+}
+document.getElementById('prevMonth').onclick=()=>goMonth(-1);
+document.getElementById('nextMonth').onclick=()=>goMonth(1);
+
+/* swipe left/right on the grid to change months */
+(function(){
+  let x0=0,y0=0,tracking=false;
+  const start=e=>{ const t=e.touches?e.touches[0]:e; x0=t.clientX; y0=t.clientY; tracking=true; };
+  const end=e=>{
+    if(!tracking) return; tracking=false;
+    const t=e.changedTouches?e.changedTouches[0]:e;
+    const dx=t.clientX-x0, dy=t.clientY-y0;
+    if(Math.abs(dx)>45 && Math.abs(dx)>Math.abs(dy)*1.4) goMonth(dx<0?1:-1);
+  };
+  grid.addEventListener('touchstart',start,{passive:true});
+  grid.addEventListener('touchend',end,{passive:true});
+  grid.addEventListener('mousedown',start);
+  grid.addEventListener('mouseup',end);
+})();
+
+/* month + year picker (tap the header) */
+const picker=document.getElementById('picker');
+const monthsWrap=document.getElementById('months');
+const pyLabel=document.getElementById('pyLabel');
+let pickYear=viewYear;
+function renderMonths(){
+  pyLabel.textContent=pickYear;
+  monthsWrap.innerHTML=MONTHS.map((m,i)=>{
+    const sel=(pickYear===viewYear && i===viewMonth)?' class="sel"':'';
+    return `<button data-m="${i}"${sel}>${m}</button>`;
+  }).join('');
+}
+function openPicker(){ pickYear=viewYear; renderMonths(); picker.hidden=false; document.body.classList.add('picking'); }
+function closePicker(){ picker.hidden=true; document.body.classList.remove('picking'); }
+function togglePicker(){ document.body.classList.contains('picking')?closePicker():openPicker(); }
+document.getElementById('calHead').onclick=togglePicker;
+document.getElementById('calHead').addEventListener('keydown',e=>{ if(e.key==='Enter'||e.key===' '){e.preventDefault();togglePicker();} });
+document.getElementById('pyPrev').onclick=()=>{ pickYear--; renderMonths(); };
+document.getElementById('pyNext').onclick=()=>{ pickYear++; renderMonths(); };
+monthsWrap.onclick=e=>{ const b=e.target.closest('button[data-m]'); if(!b) return; viewYear=pickYear; viewMonth=+b.dataset.m; renderGrid(); closePicker(); };
+
+/* ---------- view switching ---------- */
+let inCal=false;
+function setCal(open){
+  inCal=open;
+  closePicker();
+  if(open){ const t=today(); viewYear=t.getFullYear(); viewMonth=t.getMonth(); renderGrid(); }
+  document.body.classList.toggle('cal-open', open);
+  orbTarget.y = open? place.calY : place.homeY;
+  orbTarget.s = open? place.calMul : place.homeMul;
+}
+document.getElementById('toCal').onclick=()=>setCal(true);
+document.getElementById('toHome').onclick=()=>setCal(false);
+
+/* ---------- reset flow ---------- */
+const scrim=document.getElementById('scrim');
+document.getElementById('resetBtn').onclick=()=>scrim.classList.add('show');
+document.getElementById('cancelReset').onclick=()=>scrim.classList.remove('show');
+document.getElementById('confirmReset').onclick=()=>{
+  anchor=ymd(today());
+  try{localStorage.setItem(KEY,anchor);}catch(e){}
+  scrim.classList.remove('show');
+  refresh();
+  pulse();
+};
+
+refresh();
+setInterval(refresh,30000);
+document.addEventListener('visibilitychange',()=>{ if(!document.hidden) refresh(); });
+
+/* ======================================================
+   THREE.JS  —  procedural glass water orb
+   ====================================================== */
+let baseScale=0.33;
+const place={homeY:-0.22, calY:-1.6, homeMul:1.0, calMul:1.9};
+const orbTarget={y:place.homeY, s:place.homeMul};
+const orbNow={y:place.homeY, s:place.homeMul};
+let pulseT=0;
+
+let renderer, scene, camera, orb, dragging=false, spin=0, lastX=0, spinVel=0;
+
+function initOrb(){
+  const canvas=document.getElementById('orb');
+  renderer=new THREE.WebGLRenderer({canvas, antialias:true, alpha:true, powerPreference:'high-performance'});
+  renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+  renderer.toneMapping=THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure=1.12;
+  if(THREE.SRGBColorSpace) renderer.outputColorSpace=THREE.SRGBColorSpace;
+  else if(THREE.sRGBEncoding) renderer.outputEncoding=THREE.sRGBEncoding;
+
+  scene=new THREE.Scene();
+  camera=new THREE.PerspectiveCamera(34, 1, 0.1, 100);
+  camera.position.set(0,0,4.3);
+
+  scene.environment=buildEnv();
+
+  const geo=new THREE.IcosahedronGeometry(1,24);
+  displace(geo);
+  const mat=new THREE.MeshPhysicalMaterial({
+    color:0xbfe4f0, transmission:1.0, thickness:1.4, ior:1.28,
+    roughness:0.07, metalness:0.0, clearcoat:1.0, clearcoatRoughness:0.12,
+    iridescence:0.5, iridescenceIOR:1.35, iridescenceThicknessRange:[120,420],
+    attenuationColor:new THREE.Color(0x8fd0ea), attenuationDistance:2.4,
+    envMapIntensity:1.5, transparent:true
+  });
+  orb=new THREE.Mesh(geo,mat);
+  scene.add(orb);
+
+  scene.add(new THREE.HemisphereLight(0xffffff,0x9fb8c8,0.5));
+  const key=new THREE.DirectionalLight(0xffffff,1.1); key.position.set(2,3,3); scene.add(key);
+  const rim=new THREE.DirectionalLight(0xbfe6ff,0.7); rim.position.set(-3,-1,-2); scene.add(rim);
+
+  addPointer(canvas);
+  window.addEventListener('resize',resize); resize();
+  requestAnimationFrame(loop);
+}
+
+function buildEnv(){
+  const c=document.createElement('canvas'); c.width=1024; c.height=512;
+  const x=c.getContext('2d');
+  const g=x.createLinearGradient(0,0,0,512);
+  g.addColorStop(0.00,'#f4fbff'); g.addColorStop(0.28,'#bfe1f4'); g.addColorStop(0.52,'#6fb2dd');
+  g.addColorStop(0.75,'#3c81b8'); g.addColorStop(1.00,'#e9f5ff');
+  x.fillStyle=g; x.fillRect(0,0,1024,512);
+  const rg=x.createRadialGradient(320,150,20,320,150,260);
+  rg.addColorStop(0,'rgba(255,255,255,.95)'); rg.addColorStop(1,'rgba(255,255,255,0)');
+  x.fillStyle=rg; x.fillRect(0,0,1024,512);
+  const rg2=x.createRadialGradient(760,360,10,760,360,200);
+  rg2.addColorStop(0,'rgba(210,240,255,.7)'); rg2.addColorStop(1,'rgba(210,240,255,0)');
+  x.fillStyle=rg2; x.fillRect(0,0,1024,512);
+  const tex=new THREE.CanvasTexture(c);
+  tex.mapping=THREE.EquirectangularReflectionMapping;
+  if(THREE.SRGBColorSpace) tex.colorSpace=THREE.SRGBColorSpace;
+  const pmrem=new THREE.PMREMGenerator(renderer);
+  const rt=pmrem.fromEquirectangular(tex);
+  tex.dispose(); pmrem.dispose();
+  return rt.texture;
+}
+
+function hash(x,y,z){ const s=Math.sin(x*127.1+y*311.7+z*74.7)*43758.5453; return s-Math.floor(s); }
+function vnoise(x,y,z){
+  const xi=Math.floor(x),yi=Math.floor(y),zi=Math.floor(z);
+  const xf=x-xi,yf=y-yi,zf=z-zi;
+  const u=xf*xf*(3-2*xf),v=yf*yf*(3-2*yf),w=zf*zf*(3-2*zf);
+  const L=(a,b,t)=>a+(b-a)*t;
+  const c000=hash(xi,yi,zi),c100=hash(xi+1,yi,zi),c010=hash(xi,yi+1,zi),c110=hash(xi+1,yi+1,zi);
+  const c001=hash(xi,yi,zi+1),c101=hash(xi+1,yi,zi+1),c011=hash(xi,yi+1,zi+1),c111=hash(xi+1,yi+1,zi+1);
+  return L(L(L(c000,c100,u),L(c010,c110,u),v),L(L(c001,c101,u),L(c011,c111,u),v),w);
+}
+function fbm(x,y,z){ let a=0,amp=0.5,f=1; for(let i=0;i<4;i++){ a+=amp*(vnoise(x*f,y*f,z*f)*2-1); f*=2; amp*=0.5; } return a; }
+function displace(geo){
+  const p=geo.attributes.position; const v=new THREE.Vector3();
+  for(let i=0;i<p.count;i++){
+    v.fromBufferAttribute(p,i);
+    const n=v.clone().normalize();
+    const big=fbm(n.x*1.6+5,n.y*1.6,n.z*1.6-3);
+    const fine=fbm(n.x*4.2,n.y*4.2+9,n.z*4.2);
+    const d=1 + big*0.10 + fine*0.035;
+    v.copy(n).multiplyScalar(d);
+    p.setXYZ(i,v.x,v.y,v.z);
+  }
+  geo.computeVertexNormals();
+}
+
+function addPointer(canvas){
+  const down=e=>{dragging=true; lastX=(e.touches?e.touches[0].clientX:e.clientX);};
+  const move=e=>{ if(!dragging)return; const x=(e.touches?e.touches[0].clientX:e.clientX); const dx=x-lastX; lastX=x; spinVel=dx*0.005; spin+=spinVel; };
+  const up=()=>dragging=false;
+  canvas.addEventListener('mousedown',down); canvas.addEventListener('touchstart',down,{passive:true});
+  window.addEventListener('mousemove',move); window.addEventListener('touchmove',move,{passive:true});
+  window.addEventListener('mouseup',up); window.addEventListener('touchend',up);
+}
+
+function pulse(){ pulseT=1; }
+
+function resize(){
+  const w=innerWidth,h=innerHeight;
+  renderer.setSize(w,h,false);
+  camera.aspect=w/h; camera.updateProjectionMatrix();
+  const hH=Math.tan(camera.fov*Math.PI/360)*camera.position.z;   // world half-height at z=0
+  const hW=hH*camera.aspect;
+  const r=Math.min(0.63*hW, 0.40*hH);        // home radius: ~63% of width, capped at 40% of height
+  baseScale=r/1.15;
+  place.homeY=hH*(1-2*0.56);                  // a touch below middle
+  place.calY =hH*(1-2*0.80) - r*place.calMul; // crown pokes up from the bottom
+  orbTarget.y = inCal ? place.calY : place.homeY;
+  orbTarget.s = inCal ? place.calMul : place.homeMul;
+}
+
+let prev=performance.now();
+function loop(now){
+  const dt=Math.min((now-prev)/1000,0.05); prev=now;
+  orbNow.y+=(orbTarget.y-orbNow.y)*Math.min(1,dt*3.2);
+  orbNow.s+=(orbTarget.s-orbNow.s)*Math.min(1,dt*3.2);
+  if(!dragging){ spin+=dt*0.35; spinVel*=0.94; spin+=spinVel; }
+  const bob=Math.sin(now*0.0011)*0.045;
+  let ps=1; if(pulseT>0){ pulseT=Math.max(0,pulseT-dt*1.8); ps=1+Math.sin((1-pulseT)*Math.PI)*0.06; }
+  if(orb){
+    orb.position.y=orbNow.y+bob;
+    orb.rotation.y=spin;
+    orb.rotation.x=Math.sin(now*0.0007)*0.12;
+    orb.scale.setScalar(baseScale*orbNow.s*ps);
+  }
+  renderer.render(scene,camera);
+  requestAnimationFrame(loop);
+}
+
+try{ initOrb(); }catch(err){ console.error('orb init failed',err); }
+
+/* PWA: register service worker (needs https or localhost; no-ops on file://) */
+if('serviceWorker' in navigator){
+  window.addEventListener('load',()=>{ navigator.serviceWorker.register('./sw.js').catch(()=>{}); });
+}
+</script>
+</body>
+</html>
