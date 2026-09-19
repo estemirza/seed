@@ -1,5 +1,5 @@
 /* Seed — service worker. Bump CACHE when the app shell changes. */
-const CACHE='seed-v2';
+const CACHE='seed-v3';
 const RUNTIME='seed-runtime-v2';
 const SHELL=[
   './',
