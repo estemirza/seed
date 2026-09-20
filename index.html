@@ -167,7 +167,8 @@ let anchor=null; try{ anchor=localStorage.getItem(KEY); }catch(e){}
 if(!anchor){ anchor = ymd(today()); try{localStorage.setItem(KEY,anchor);}catch(e){} }
 
 function streak(){ return Math.max(0, diffDays(today(), fromYmd(anchor))); }
-function isTracked(cell){ const a=fromYmd(anchor), t=today(), c=midnight(cell); return c>midnight(a) && c<=t; }
+// Colored = completed days: from the reset day up to yesterday. Today stays the empty box.
+function isTracked(cell){ const a=fromYmd(anchor), t=today(), c=midnight(cell); return c>=midnight(a) && c<t; }
 
 /* ---------- ui refs ---------- */
 const num=document.getElementById('num');
